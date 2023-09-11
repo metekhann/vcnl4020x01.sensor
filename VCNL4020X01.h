@@ -37,7 +37,8 @@
 #define VCNL_REG_INTERRUPT_STATUS					(0x8E)
 #define VCNL_REG_PROXIMITY MODULATOR				(0x8F)
 
-
+typedef uint16_t Ambiant_Typedef_t;
+typedef uint16_t Proximity_Typedef_t;
 
 /*
  * @brief  VCNL Status enum definition
@@ -54,6 +55,13 @@ typedef enum
 }VCNL_StatusTypedef_t;
 
 
+typedef enum
+{
+	VCNL4020_GET_PROX				= 0x00,
+	VCNL4020_GET_AMBIANT			= 0x01,
+	VCNL4020_GET_PROX_AMBIANT		= 0x02,
+
+}VCNL_OperationTypedef_t;
 
 
 /*
@@ -63,15 +71,27 @@ typedef enum
 
 typedef struct
 {
-	I2C_HandleTypeDef *i2chandle;
-	uint8_t 			deviceADDR;
-	uint16_t			ProgramTimeout;
-	//uint8_t				Prox_Mode;
-	//uint8_t				Als_Mode;
+	I2C_HandleTypeDef 		*i2chandle;
+	uint8_t 				deviceADDR;
+	uint16_t				ProgramTimeout;
+	Ambiant_Typedef_t		Ambiant_RawValue;
+	Proximity_Typedef_t		Proximity_RawValue;
 
 }VCNL_struct;
 
-VCNL_StatusTypedef_t VCNL_Init(VCNL_struct *sensor, I2C_HandleTypeDef *i2chandle, uint8_t deviceAddress, uint16_t TimeOut);
-VCNL_StatusTypedef_t VCNL_isConnected(VCNL_struct *sensor);
+
+
+
+
+
+
+VCNL_StatusTypedef_t VCNL4020_Init(VCNL_struct *sensor, I2C_HandleTypeDef *i2chandle, uint8_t deviceAddress, uint16_t TimeOut);
+VCNL_StatusTypedef_t VCNL4020_isConnected(VCNL_struct *sensor);
+VCNL_StatusTypedef_t VCNL4020_Read(VCNL_struct *sensor, uint8_t regAddr, uint8_t *pData);
+VCNL_StatusTypedef_t VCNL4020_Write(VCNL_struct *sensor, uint8_t regAddr, uint8_t *pData);
+VCNL_StatusTypedef_t VCNL4020_GetAmbiant_RAW(VCNL_struct *sensor);
+float VCNL4020_GetAmbiant(VCNL_struct *sensor, float *ambiant);
+float VCNL4020_convertRawAmbiant(Ambiant_Typedef_t rawAmbiant);
+VCNL_StatusTypedef_t VCNL4020_GetProximity_RAW(VCNL_struct *sensor);
 
 #endif /* SENSOR_DRIVER_INC_VCNL4020X01_H_ */
