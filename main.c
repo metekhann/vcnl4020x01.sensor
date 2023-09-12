@@ -18,13 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdarg.h>
+#include <string.h>
+#include <stdlib.h>
 #include "VCNL4020X01.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,10 +49,8 @@ I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
-VCNL_struct sensor1;
-
 /* USER CODE BEGIN PV */
-
+VCNL4020_struct sensor1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -114,7 +113,7 @@ HAL_StatusTypeDef status = HAL_ERROR;
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  if(VCNL4020_Init(&sensor1, &hi2c1, VCNL_SLAVE_ADDRESS, 1000) == VCNL_OK)
+  /*if(VCNL4020_Init(&sensor1, &hi2c1, VCNL_SLAVE_ADDRESS, 1000) == VCNL_OK)
   				{
   					//VCNL_GetLight(&sensor1, &light_sensor);
   					print_m("\nbasarili\n");
@@ -130,11 +129,13 @@ HAL_StatusTypeDef status = HAL_ERROR;
   	    					print_m("\n%s\n",resultBuffer);
   	  				}
   	  				else
-  	  					print_m("\nolcum_alinamadi\n");
+  	  					print_m("\nolcum_alinamadi\n");*/
 
   HAL_UART_Receive_IT(&huart1, (uint8_t*)&uart_data, 1);
+ // VCNL4020_Ambiant_Interrupt_Enable(&sensor1);
   while (1)
   {
+	  uint8_t val8 = 0;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -149,10 +150,11 @@ HAL_StatusTypeDef status = HAL_ERROR;
 	  				}
 	  				else
 	  					print_m("\nolcum_alinamadi\n");
-	  HAL_Delay(500);
+	  HAL_Delay(500);*/
 
-
-*/
+		/*val8 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_7);
+  		print_m("\n%d\n",val8);
+  		HAL_Delay(500);*/
 
 
   }
@@ -325,6 +327,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PA7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
@@ -381,9 +393,10 @@ static void print_m(const char *data, ...)
 }
 static void toBinary(uint16_t source , char* target)
 {
+	memset(target, 0, 20);
 	for(int i = 0; i < 16; i++)
 	{
-		if((source & (0x1 << (16-i))))
+		if((source & (0x1 << (15-i))))
 		{
 			target[i] = '1';
 		}
@@ -400,6 +413,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if(huart == &huart1)
 	{
+		uint8_t val8 = 0;
+		uint16_t val16 = 0;
+
 		if(uart_data == 0x0D)
 		{
 			if(!strcmp(Buffer, "basla"))
@@ -425,6 +441,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   					print_m("\nolcum_alindi\n");
   					toBinary(sensor1.Ambiant_RawValue, resultBuffer);
   					print_m("\n%s\n",resultBuffer);
+
+  					VCNL4020_Read(&sensor1, VCNL_REG_INTERRUPT_STATUS, &val8);
+  					toBinary(val8, resultBuffer);
+  					print_m("\n%s\n",resultBuffer);
+  					val8 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_7);
+  					print_m("\n%d\n",val8);
 				}
 				else
 					print_m("\nolcum_alinamadi\n");
@@ -440,6 +462,51 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 				else
 					print_m("\nolcum_alinamadi\n");
 			}
+			else if(!strcmp(Buffer, "intenable"))
+			{
+				if(VCNL4020_Ambiant_Interrupt_Enable(&sensor1) == VCNL_OK)
+				{
+  					print_m("\nint_enable _edildi\n");
+  					val8 = 0;
+  					VCNL4020_Read(&sensor1, VCNL_REG_INTERRUPT_CONTROL, &val8);
+  					val16 = (uint16_t)(val8);
+
+  					toBinary(val16, resultBuffer);
+  					print_m("\n%s\n",resultBuffer);
+				}
+				else
+					print_m("\nint enable edilemedi\n");
+			}
+			else if(!strcmp(Buffer, "setlowth"))
+			{
+				if(VCNL4020_SetLowTH(&sensor1) == VCNL_OK)
+				{
+  					print_m("\nlowth set edildi\n");
+  					VCNL4020_Read(&sensor1, VCNL_REG_LOW_THRESHOLD_HB, &val8);
+  					val16 = (uint16_t)(val8 << 8);
+  					VCNL4020_Read(&sensor1, VCNL_REG_LOW_THRESHOLD_LB, &val8);
+  					val16 |= (uint16_t)(val8);
+  					toBinary(val16, resultBuffer);
+  					print_m("\n%s\n",resultBuffer);
+				}
+				else
+					print_m("\nlowth set edilemedi\n");
+			}
+			else if(!strcmp(Buffer, "sethighth"))
+			{
+				if(VCNL4020_SetHighTH(&sensor1) == VCNL_OK)
+				{
+  					print_m("\nHighth set edildi\n");
+  					VCNL4020_Read(&sensor1, VCNL_REG_HIGH_THRESHOLD_HB, &val8);
+  					val16 = (uint16_t)(val8 << 8);
+  					VCNL4020_Read(&sensor1, VCNL_REG_HIGH_THRESHOLD_LB, &val8);
+  					val16 |= (uint16_t)(val8);
+  					toBinary(val16, resultBuffer);
+  					print_m("\n%s\n",resultBuffer);
+				}
+				else
+					print_m("\nHighth set edilemedi\n");
+			}
 
 			index_Buffer = 0;
 			memset(Buffer, 0, 20);
@@ -452,6 +519,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 		HAL_UART_Receive_IT(&huart1, (uint8_t*)&uart_data, 1);
 	}
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if(GPIO_Pin == GPIO_PIN_7)
+	{
+		print_m("\ninterrupt\n");
+	}
+
 }
 /* USER CODE END 4 */
 
